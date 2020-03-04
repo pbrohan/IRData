@@ -84,8 +84,22 @@ def fetch(variable,dtime):
     remote_file=_get_remote_file_name(variable,dtime.year)
 
     # Download the tar file
-    cmd="wget -O %s %s" % (_get_tar_file_name(variable,dtime.year),remote_file)
-    wg_retvalue=subprocess.call(cmd,shell=True)
+    if os.name != "nt": #If not Windows wget file
+        cmd="wget -O %s %s" % (local_file,remote_file)
+        wg_retvalue=subprocess.call(cmd,shell=True)
+    else: 
+        import requests
+        #Use requests to stream data as Windows doesn't have a
+        #suitable shell command
+        wg_retvalue=1
+        filedata=requests.get(remote_file,stream=True)
+        if filedata:
+            wg_retvalue=0
+            with open(local_file, "wb") as handle:
+                for chunk in filedata.iter_content(chunk_size=512):
+                    if chunk:  # filter out keep-alive new chunks
+                        handle.write(chunk)
+            #If interrupted, cry?
     if wg_retvalue!=0:
         raise Exception("Failed to retrieve data")
     _unpack_downloaded(variable,dtime.year)
